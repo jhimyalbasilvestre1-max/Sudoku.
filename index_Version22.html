@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sudoku Galáctico</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: radial-gradient(ellipse at 70% 30%, #23284a 0%, #171321 80%), url('https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=1200&q=80') center/cover no-repeat fixed;
+    min-height: 100vh; color: #fff;
+    margin: 0; padding: 0;
+}
+.start-overlay {
+    position:fixed; top:0; left:0; width:100vw; height:100vh; background:#131025f2;
+    z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition:opacity .5s;
+}
+.start-options { display:flex; gap:2em; margin-top:2em; flex-wrap:wrap;}
+.start-btn {
+    background: linear-gradient(90deg, #0a91b7 0%, #3f45a8 100%);
+    border: none; border-radius: 1em; color: #fff; padding: 1.6em 2.5em; font-size: 1.7em;
+    cursor: pointer; box-shadow: 0 2px 19px #2b227c50; margin:.6em 1em; transition: background .22s;
+}
+.start-btn:hover { background:linear-gradient(90deg,#45fff7 0,#8a5cfb 100%); color:#292045; }
+.start-title {
+    font-size:2.3em; color:#b1feff; text-shadow:0 2px 12px #280e81,0 0 8px #20f5ff61;
+    font-family:'Orbitron',Arial,sans-serif; letter-spacing:2px; margin-bottom:1em;
+}
+.section-game {
+    max-width:700px; margin:56px auto 0 auto; background:#24244aeb; border-radius:16px; box-shadow:0 8px 30px #1615395c;
+    padding:24px 10px 36px 10px; min-height:520px; display:none;
+    animation: sectionfade .7s;
+    text-align:center;
+}
+@keyframes sectionfade{from{transform:translateY(40px); opacity:0;} to{transform:translateY(0);opacity:1;}}
+h1 { color:#abd4fb; text-shadow:0 0 18px #24abb3,0 2px 15px #040c21; font-family:'Orbitron',Arial,sans-serif;letter-spacing:2px;z-index:2; text-align:center; margin:1em 0 .2em 0;}
+#nivel, #timer, #error-count { display:inline-block; margin:0 .6em .5em 0;}
+#nivel { font-size: 18px; letter-spacing:1px; color:#ffd580; background: #251e41b2; border-radius: 8px; padding: 4px 17px;}
+#timer { font-size: 22px; background:#212b44c8; padding: 10px 28px; border-radius: 13px; color:#6ffbe3; font-family: 'Orbitron', monospace; letter-spacing:2px; box-shadow:0 2px 9px #050f30; border:2px solid #1b2546;}
+#error-count { font-size: 18px; color: #ffa3b7; background: #3a233e; border-radius:9px; padding: 3px 13px;}
+#sudoku-container {
+    display: grid; grid-template-columns: repeat(9, 65px); grid-template-rows: repeat(9, 65px);
+    gap: 1.7px; background: #273267; border: 3px solid #6cccf7; border-radius: 19px;
+    box-shadow: 0 7px 19px #2229ab40, 0 2px 18px #00f3ff44 inset; z-index: 2;
+    margin: 20px auto 0 auto;
+    justify-content:center;
+}
+.cell {
+    width: 65px; height: 65px;
+    text-align: center; font-size: 32px;
+    border: none; outline: none;
+    background: rgba(27,22,77,0.78); color: #f6fcff; transition: background 0.22s;
+    border-radius:7px;
+    cursor:pointer;
+}
+.cell.selected { background: #3c2b5a !important; }
+.cell.lhighlight-row, .cell.lhighlight-col { background: #52d4fa38 !important; }
+.cell.cell-same-number { background: #2da3f3cc !important; color:#fff !important;}
+.cell:disabled { background: #3d414b; color: #72fff0; font-weight: bold; text-shadow: 0 2px 4px #293770;}
+.row-border { border-bottom: 4px solid #29d1f1;}
+.col-border { border-right: 4px solid #29d1f1;}
+#controls {
+    margin: 1.7rem auto .7rem auto; display: flex; flex-wrap:wrap; gap: 1.1em; align-items:center; justify-content:center;
+    max-width:650px;
+}
+button, .btn { padding: 0.64rem 1.8rem; font-size: 20px; cursor: pointer; color: #fff; background: linear-gradient(90deg, #0a91b7 0%, #3f45a8 100%); border: none; border-radius: 7px; box-shadow:0 0px 8px #2c276f2b; letter-spacing:0.5px; z-index: 2; transition:.2s;}
+button:hover, .btn:hover { background: linear-gradient(90deg, #33bee7 0%, #5767d3 100%);}
+#erase { background: #9810a2;color: #fff; transition:.2s;}
+#erase:hover { background: #e64ed8;}
+#salir { background: #282828; color: #ffeef6; font-weight:bold;}
+#salir:hover { background: #ba032a;}
+#configurar-sonido { background: #28488b; color: #e2fcff;}
+#sudoku-resultado {
+    margin-top:1.4rem;
+    font-size:22px; min-height: 1.7em; color: #e8fcfd; text-shadow: 0 1px 6px #223db4;
+    background:#1a2165a6; border-radius:13px; padding:14px 18px;
+    border:1px solid #3bd9fc44; z-index: 1; max-width:600px; text-align:center;
+    display: flex;align-items: center; justify-content:center; gap:16px;
+}
+.sudoku-emoji {
+    font-size: 2.2em;
+    display:inline-block;
+    vertical-align:middle;
+    transition:opacity .5s;
+    margin-top: -6px;
+}
+#config-panel {margin:1.8em auto 0 auto; text-align:center; padding:1.1em; background:#222; border-radius:14px; max-width:320px; color:#bbecf7; border:1.5px solid #4666ab;}
+#config-panel input[type=range]{width:120px;}
+#config-panel label{margin-right:.6em;}
+#config-panel button {padding:4px 15px;font-size:15px;}
+#num-pad {
+    margin:1.8em auto 0 auto; display: flex; justify-content:center; gap: 2vw;
+    max-width:600px; min-height:54px;
+}
+.num-btn {
+    width: 56px; height: 56px;
+    background: #17224b;
+    border: 2.3px solid #5cd1ff60;
+    color:#bff6ff;
+    font-family:'Orbitron',sans-serif; font-size: 2.1em;
+    border-radius: 11px;
+    margin:0 3px;
+    box-shadow:0 3px 12px #2a88f818;
+    transition: .14s;
+    cursor:pointer;
+    font-weight:500;
+    outline:none;
+    position:relative;
+    z-index:4;
+}
+.num-btn:disabled {
+    opacity: 0.2;
+    pointer-events: none;
+    transform: scale(.88);
+    background: #33394d;
+    color: #eee;
+}
+.num-btn:not(:disabled):hover {
+    background:#2294f3;color:#fff;transform:scale(1.06);
+}
+#num-pad .num-btn.highlighted-num-pad {
+    background: #2da3f3cc;
+    color: #fff !important;
+    box-shadow:0 3px 12px #2a34c8cc;
+}
+@media(max-width:1030px){
+  #sudoku-container{ grid-template-columns:repeat(9,10vw);grid-template-rows:repeat(9,10vw);}
+  .cell{ width:9vw;height:9vw;min-width:28px;min-height:28px; font-size:5vw; max-width:78px; max-height:78px;}
+  .section-game{padding:0 1vw;}
+  #num-pad{gap:1vw;}
+  .num-btn{width:7.2vw;height:7.2vw;min-width:33px;max-width:80px;font-size:4vw;}
+}
+@media(max-width:700px){
+    .section-game{max-width:99vw;min-width:97vw;}
+    #sudoku-container{grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);}
+    .cell{min-width:18px;min-height:18px; font-size:3vw;}
+    #num-pad{gap:0.3vw;}
+}
+</style>
+</head>
+<body>
+
+<!-- INICIO (Selector de dificultad) -->
+<div class="start-overlay" id="startOverlay">
+    <div class="start-title">SUDOKU GALÁCTICO<br><span style="font-size:73%;">Elige dificultad</span></div>
+    <div class="start-options">
+        <button class="start-btn" onclick="startGame('facil')">Fácil</button>
+        <button class="start-btn" onclick="startGame('medio')">Medio</button>
+        <button class="start-btn" onclick="startGame('dificil')">Difícil</button>
+    </div>
+</div>
+
+<div class="section-game" id="sudoku-section">
+    <h1>Sudoku Galáctico</h1>
+    <div id="nivel">Nivel: <span id="nivel-num">1</span> / <span id="nivel-max">100</span> <span id="modo-label" style="font-size:15px;background:#324494;padding:2px 9px;border-radius:8px;"></span></div>
+    <div id="timer">00:00</div>
+    <div id="error-count">Errores: 0/3</div>
+    <div id="sudoku-container"></div>
+    <div id="controls">
+        <button class="btn" onclick="validarSudoku()">Validar Sudoku</button>
+        <button class="btn" id="erase" onclick="borrarSeleccion()">Borrar número</button>
+        <button class="btn" onclick="siguienteNivel()">Siguiente nivel</button>
+        <button class="btn" id="salir" onclick="salir()">Salir</button>
+        <button class="btn" id="configurar-sonido" onclick="mostrarConfig()">Configurar sonido</button>
+    </div>
+    <div id="num-pad"></div>
+    <div id="config-panel" style="display:none;">
+        <div style="margin-bottom:7px;">Volumen sonido: <input type="range" id="volumen-sonido" min="0" max="1" step="0.01"></div>
+        <div style="margin-bottom:7px;">
+            <label><input type="checkbox" id="sonido-teclas"> Sonido teclas</label>
+            <label><input type="checkbox" id="sonido-exito"> Sonido acierto</label>
+            <label><input type="checkbox" id="sonido-error"> Sonido error</label>
+        </div>
+        <button onclick="ocultarConfig()">Cerrar</button>
+    </div>
+    <div id="sudoku-resultado"></div>
+</div>
+
+<!-- Audios -->
+<audio id="audio-key" src="https://cdn.pixabay.com/audio/2022/03/15/audio_113b9e6bbe.mp3"></audio>
+<audio id="audio-success" src="https://cdn.pixabay.com/audio/2022/02/23/audio_115b482e0c.mp3"></audio>
+<audio id="audio-error" src="https://cdn.pixabay.com/audio/2022/10/16/audio_123d8a1ad6.mp3"></audio>
+
+<script>
+const OP_MODOS = { facil:0, medio:1, dificil:2 };
+const OP_LABELS = {facil:"Fácil",medio:"Medio",dificil:"Difícil"};
+let modoActual = "facil", NIVELES = 100;
+
+//--- DEMO Data ---
+let sudokuPuzzles = {facil:[],medio:[],dificil:[]}, sudokuSolutions = {facil:[],medio:[],dificil:[]};
+function generarSudokusDemo(){
+    const model = [
+        [5,3,0,0,7,0,0,0,0],
+        [6,0,0,1,9,5,0,0,0],
+        [0,9,8,0,0,0,0,6,0],
+        [8,0,0,0,6,0,0,0,3],
+        [4,0,0,8,0,3,0,0,1],
+        [7,0,0,0,2,0,0,0,6],
+        [0,6,0,0,0,0,2,8,0],
+        [0,0,0,4,1,9,0,0,5],
+        [0,0,0,0,8,0,0,7,9]
+    ];
+    const solution = [
+        [5,3,4,6,7,8,9,1,2],
+        [6,7,2,1,9,5,3,4,8],
+        [1,9,8,3,4,2,5,6,7],
+        [8,5,9,7,6,1,4,2,3],
+        [4,2,6,8,5,3,7,9,1],
+        [7,1,3,9,2,4,8,5,6],
+        [9,6,1,5,3,7,2,8,4],
+        [2,8,7,4,1,9,6,3,5],
+        [3,4,5,2,8,6,1,7,9]
+    ];
+    for(let n=0; n<NIVELES; n++){
+        sudokuPuzzles.facil.push(model.map(row=>row.map(v=>v?(v+n)%9+1:0)));
+        sudokuSolutions.facil.push(solution.map(row=>row.map(v=>(v+n)%9+1)));
+        sudokuPuzzles.medio.push(model.map(row=>row.map((v,j)=>j%2===0?v?((v+n*2)%9+1):0:0)));
+        sudokuSolutions.medio.push(solution.map(row=>row.map(v=>(v+n*2)%9+1)));
+        sudokuPuzzles.dificil.push(model.map((row,i)=>row.map((v,j)=> (i+j)%3===1 && v?((v+n*3)%9+1):0 )));
+        sudokuSolutions.dificil.push(solution.map(row=>row.map(v=>(v+n*3)%9+1)));
+    }
+}
+generarSudokusDemo();
+
+//---- SONIDO ----//
+let sonidoConfig = {
+    volumen: 0.4,
+    tecla: true,
+    exito: true,
+    error: true
+};
+function playSound(type){
+    try{
+        if(type==="tecla" && !sonidoConfig.tecla) return;
+        if(type==="exito" && !sonidoConfig.exito) return;
+        if(type==="error" && !sonidoConfig.error) return;
+        let el = document.getElementById(
+            type==="tecla"?'audio-key':
+            type==="exito"?'audio-success':'audio-error'
+        );
+        el.currentTime=0;
+        el.volume=sonidoConfig.volumen;
+        el.play();
+    }catch{}
+}
+function mostrarConfig(){
+    document.getElementById("config-panel").style.display="";
+    document.getElementById("volumen-sonido").value = sonidoConfig.volumen;
+    document.getElementById("sonido-teclas").checked = sonidoConfig.tecla;
+    document.getElementById("sonido-exito").checked = sonidoConfig.exito;
+    document.getElementById("sonido-error").checked = sonidoConfig.error;
+}
+function ocultarConfig(){
+    sonidoConfig.volumen = parseFloat(document.getElementById("volumen-sonido").value||0.4);
+    sonidoConfig.tecla = document.getElementById("sonido-teclas").checked;
+    sonidoConfig.exito = document.getElementById("sonido-exito").checked;
+    sonidoConfig.error = document.getElementById("sonido-error").checked;
+    document.getElementById("config-panel").style.display="none";
+}
+
+//---- SUDOKU LOGIC ----//
+let nivelActual = 1, errores = 0, sudoku = [], solution = [], timerInterval = null, segundos = 0, terminado = false, cellSelected = null;
+let highlightedNumPad = null;
+
+function pad(n){return n<10?"0"+n:n;}
+function renderTimer(){ 
+    let min = Math.floor(segundos/60), seg = segundos%60;
+    document.getElementById('timer').textContent = `${pad(min)}:${pad(seg)}`; 
+}
+function iniciarTemporizador(){
+    segundos=0; renderTimer();
+    if(timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(()=>{
+        if(!terminado){ segundos++; renderTimer(); }
+    },1000);
+}
+function getNumbersUsedCount(){
+    let counts = {};
+    for(let k=1;k<=9;k++) counts[k]=0;
+    for(let i=0;i<9;i++) for(let j=0;j<9;j++){
+        let v = sudoku[i][j];
+        if(v>0 && v<=9) counts[v]++;
+    }
+    return counts;
+}
+function highlightSameNumbers(value) {
+    // Remove previous highlights
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.remove('cell-same-number');
+    });
+    if(!value) return;
+    document.querySelectorAll('.cell').forEach(cell=>{
+        if(cell.value == value && value !== "") {
+            cell.classList.add('cell-same-number');
+        }
+    });
+}
+function clearHighlightSameNumbers() {
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.classList.remove('cell-same-number');
+    });
+}
+function renderNumPad() {
+    const counts = getNumbersUsedCount();
+    let totalPorNum = 9;
+    let html = "";
+    for(let n=1; n<=9; n++) {
+        let used = counts[n];
+        let solved = used === totalPorNum;
+        html += `<button class="num-btn${highlightedNumPad==n?' highlighted-num-pad':''}" id="num-btn-${n}" ${solved?"disabled":""} onclick="numPadClicked(${n})">${n}</button>`;
+    }
+    document.getElementById("num-pad").innerHTML = html;
+}
+function numPadClicked(n) {
+    // Limpiar highlight de prev click
+    highlightedNumPad = n;
+    renderNumPad();
+    highlightSameNumbers(n);
+}
+function linearHighlight(row, col) {
+    document.querySelectorAll('.cell')
+        .forEach(c => c.classList.remove('lhighlight-row','lhighlight-col'));
+    document.querySelectorAll('.cell').forEach(cell=>{
+        const r = parseInt(cell.dataset.row), c = parseInt(cell.dataset.col);
+        if(r === row) cell.classList.add('lhighlight-row');
+        if(c === col) cell.classList.add('lhighlight-col');
+    });
+}
+function clearLinearHighlight() {
+    document.querySelectorAll('.cell').forEach(c => {
+        c.classList.remove('lhighlight-row','lhighlight-col');
+    });
+}
+function highlightLinesAndNums(row, col, value=null) {
+    const cells = document.querySelectorAll('.cell');
+    cells.forEach(cell=> {
+        cell.classList.remove('highlight-row','highlight-col','highlight-square');
+    });
+    cells.forEach(cell=>{
+        const r = parseInt(cell.dataset.row), c = parseInt(cell.dataset.col);
+        if(r === row) cell.classList.add('highlight-row');
+        if(c === col) cell.classList.add('highlight-col');
+        if (Math.floor(r/3) === Math.floor(row/3) && Math.floor(c/3) === Math.floor(col/3)) {
+            cell.classList.add('highlight-square');
+        }
+    });
+}
+
+function showSudokuEmoji(tipo) {
+    let el = document.getElementById("sudoku-emoji");
+    if (!el) {
+        el = document.createElement("span");
+        el.id = "sudoku-emoji";
+        el.className = "sudoku-emoji";
+        document.getElementById("sudoku-resultado").prepend(el);
+    }
+    el.innerHTML = (tipo === "feliz") ? "😊" : "😞";
+    el.style.opacity = 1;
+    setTimeout(()=>{ 
+        if(el) el.style.opacity = 0;
+    }, 900);
+}
+function renderSudoku() {
+    const cont = document.getElementById('sudoku-container');
+    cont.innerHTML = '';
+    for (let i=0;i<9;i++) {
+        for (let j=0;j<9;j++) {
+            const cell = document.createElement('input');
+            cell.type = 'text';
+            cell.maxLength = 1;
+            cell.className = 'cell';
+            if ((i+1)%3 === 0 && i!==8) cell.classList.add('row-border');
+            if ((j+1)%3 === 0 && j!==8) cell.classList.add('col-border');
+            if (sudoku[i][j] !== 0) {
+                cell.value = sudoku[i][j];
+                cell.disabled = true;
+            } else {
+                cell.value = '';
+            }
+            cell.dataset.row = i;
+            cell.dataset.col = j;
+            // CLICK sobre una celda: el highlight lineal permanece igual
+            cell.addEventListener('click', function(e) {
+                if (cell.value !== "" && !cell.disabled) {
+                    linearHighlight(parseInt(cell.dataset.row), parseInt(cell.dataset.col));
+                } else if(cell.value !== "" && cell.disabled) {
+                    // también para celdas fijas
+                    linearHighlight(parseInt(cell.dataset.row), parseInt(cell.dataset.col));
+                } else {
+                    clearLinearHighlight();
+                }
+            });
+            cell.addEventListener('input', function(e) {
+                let val = this.value.replace(/[^1-9]/g,'');
+                this.value = val;
+                if(val.length===1){
+                    highlightLinesAndNums(i,j,val);
+                    chequearMovimiento(i, j, parseInt(val), this);
+                } else {
+                    highlightLinesAndNums(i,j);
+                }
+                renderNumPad();
+                // quitar highlight numpad al escribir
+                highlightedNumPad = null;
+                clearHighlightSameNumbers();
+                renderNumPad();
+            });
+            cell.addEventListener('focus', function() {
+                document.querySelectorAll('.cell.selected').forEach(e=>e.classList.remove('selected'));
+                this.classList.add('selected');
+                cellSelected = this;
+                highlightLinesAndNums(i,j, this.value!==''?this.value:null);
+            });
+            cell.addEventListener('keydown', function(e){
+                if(e.key>='1' && e.key<='9') playSound("tecla");
+                setTimeout(()=>{
+                    const v = cell.value;
+                    highlightLinesAndNums(i, j, v);
+                    renderNumPad();
+                    highlightedNumPad = null;
+                    clearHighlightSameNumbers();
+                    renderNumPad();
+                }, 10);
+            });
+            cont.appendChild(cell);
+        }
+    }
+    renderNumPad();
+}
+function borrarSeleccion() {
+    if(cellSelected && !cellSelected.disabled) {
+        const row = parseInt(cellSelected.dataset.row);
+        const col = parseInt(cellSelected.dataset.col);
+        sudoku[row][col] = 0;
+        cellSelected.value = '';
+        cellSelected.focus();
+        highlightLinesAndNums(row, col, '');
+        playSound('tecla');
+        document.getElementById('sudoku-resultado').textContent = "Celda borrada.";
+        document.getElementById('sudoku-resultado').style.color = "#fbc1ff";
+        let emoji = document.getElementById("sudoku-emoji");
+        if(emoji) emoji.style.opacity=0;
+        renderNumPad();
+        clearLinearHighlight();
+    }
+}
+function insertNumberPad(n){
+    if(!cellSelected || cellSelected.disabled) return;
+    cellSelected.value = n;
+    let row = parseInt(cellSelected.dataset.row), col = parseInt(cellSelected.dataset.col);
+    sudoku[row][col] = n;
+    playSound('tecla');
+    highlightLinesAndNums(row,col,n);
+    renderNumPad();
+    chequearMovimiento(row, col, n, cellSelected);
+    cellSelected.focus();
+    // Al poner un número, quitar highlight lineal si existe y quitar highlight numpad
+    highlightedNumPad = null;
+    clearHighlightSameNumbers();
+    renderNumPad();
+    clearLinearHighlight();
+}
+function chequearMovimiento(i, j, val, inputCell) {
+    let emoji = document.getElementById("sudoku-emoji");
+    if (val !== solution[i][j]) {
+        errores++;
+        inputCell.value = ''; sudoku[i][j] = 0;
+        document.getElementById('sudoku-resultado').textContent = `¡Error! El número no es correcto (${errores}/3)`;
+        document.getElementById('sudoku-resultado').style.color = "#ffaeae";
+        document.getElementById('error-count').textContent = `Errores: ${errores}/3`;
+        playSound('error');
+        highlightLinesAndNums(i,j);
+        showSudokuEmoji("triste");
+        renderNumPad();
+        highlightedNumPad = null;
+        clearHighlightSameNumbers();
+        renderNumPad();
+        clearLinearHighlight();
+        if(errores>=3) { perderPartida(); }
+    } else {
+        sudoku[i][j] = val;
+        document.getElementById('sudoku-resultado').textContent = "¡Bien!";
+        document.getElementById('sudoku-resultado').style.color = "#b0fdc0";
+        playSound('exito');
+        showSudokuEmoji("feliz");
+        renderNumPad();
+        highlightLinesAndNums(i,j,val);
+        highlightedNumPad = null;
+        clearHighlightSameNumbers();
+        renderNumPad();
+        clearLinearHighlight();
+    }
+}
+function validarSudoku() {
+    if(terminado) return;
+    for(let i=0;i<9;i++) for(let j=0;j<9;j++)
+        if(solution[i][j]!==parseInt(sudoku[i][j])) {
+            document.getElementById('sudoku-resultado').textContent = "El Sudoku aún no está completo correctamente.";
+            document.getElementById('sudoku-resultado').style.color = "#ffd87b";
+            let emoji = document.getElementById("sudoku-emoji");
+            if(emoji) emoji.style.opacity=0;
+            return;
+        }
+    terminarPartida(true);
+}
+function terminarPartida(gano) {
+    terminado = true;
+    clearInterval(timerInterval);
+    Array.from(document.querySelectorAll('.cell:not(:disabled)')).forEach(input => input.disabled=true);
+    if(gano) {
+        document.getElementById('sudoku-resultado').textContent = `¡Sudoku resuelto en ${document.getElementById('timer').textContent}!`;
+        document.getElementById('sudoku-resultado').style.color = "#5de7f7";
+        playSound('exito');
+        let emoji = document.getElementById("sudoku-emoji");
+        if(emoji) emoji.style.opacity=0;
+        renderNumPad();
+        highlightedNumPad = null;
+        clearHighlightSameNumbers();
+    }
+}
+function perderPartida() {
+    terminado = true;
+    clearInterval(timerInterval);
+    Array.from(document.querySelectorAll('.cell:not(:disabled)')).forEach(input => input.disabled=true);
+    document.getElementById('sudoku-resultado').textContent = "Perdiste la partida por 3 errores. Inténtalo de nuevo 🎲";
+    document.getElementById('sudoku-resultado').style.color = "#fa5966";
+    playSound('error');
+    let emoji = document.getElementById("sudoku-emoji");
+    if(emoji) emoji.style.opacity=0;
+    renderNumPad();
+    highlightedNumPad = null;
+    clearHighlightSameNumbers();
+}
+function siguienteNivel() {
+    if (nivelActual < NIVELES) {
+        nivelActual++;
+        sudoku = JSON.parse(JSON.stringify(sudokuPuzzles[modoActual][nivelActual-1]));
+        solution = JSON.parse(JSON.stringify(sudokuSolutions[modoActual][nivelActual-1]));
+        errores = 0; terminado = false; cellSelected = null;
+        document.getElementById('nivel-num').textContent = nivelActual;
+        document.getElementById('error-count').textContent = "Errores: 0/3";
+        document.getElementById('sudoku-resultado').textContent = '';
+        let emoji = document.getElementById("sudoku-emoji");
+        if(emoji) emoji.style.opacity=0;
+        renderSudoku();
+        clearInterval(timerInterval);
+        iniciarTemporizador();
+        highlightedNumPad = null;
+        clearHighlightSameNumbers();
+        clearLinearHighlight();
+    } else {
+        document.getElementById('sudoku-resultado').textContent = "¡Felicidades! Has completado todos los niveles.";
+        document.getElementById('sudoku-resultado').style.color = "#ffe1c2";
+        playSound('exito');
+        let emoji = document.getElementById("sudoku-emoji");
+        if(emoji) emoji.style.opacity=0;
+        renderNumPad();
+        highlightedNumPad = null;
+        clearHighlightSameNumbers();
+        clearLinearHighlight();
+    }
+}
+function salir(){
+    document.getElementById('sudoku-section').style.display = "none";
+    document.getElementById('startOverlay').style.display = "flex";
+    clearInterval(timerInterval);
+    highlightedNumPad = null;
+    clearHighlightSameNumbers();
+    clearLinearHighlight();
+}
+function startGame(modo){
+    modoActual = modo||"facil";
+    nivelActual = 1, errores = 0, terminado = false, cellSelected = null;
+    sudoku = JSON.parse(JSON.stringify(sudokuPuzzles[modo][nivelActual-1]));
+    solution = JSON.parse(JSON.stringify(sudokuSolutions[modo][nivelActual-1]));
+    document.getElementById('nivel-num').textContent = nivelActual;
+    document.getElementById('nivel-max').textContent = NIVELES;
+    document.getElementById('modo-label').textContent = OP_LABELS[modoActual];
+    document.getElementById("error-count").textContent = "Errores: 0/3";
+    document.getElementById("startOverlay").style.display = "none";
+    document.getElementById("sudoku-section").style.display = "block";
+    document.getElementById('sudoku-resultado').textContent = '';
+    let emoji = document.getElementById("sudoku-emoji");
+    if(emoji) emoji.style.opacity=0;
+    highlightedNumPad = null;
+    renderSudoku();
+    clearInterval(timerInterval);
+    iniciarTemporizador();
+    clearHighlightSameNumbers();
+    clearLinearHighlight();
+}
+window.addEventListener('DOMContentLoaded', ()=>{
+    document.getElementById('sudoku-section').style.display="none";
+    document.getElementById('startOverlay').style.display="";
+    document.getElementById("volumen-sonido").addEventListener('input', e=>{
+        sonidoConfig.volumen = parseFloat(e.target.value||0.4);
+    });
+    // Highlight numbers when clicking the number pad
+    window.numPadClicked = numPadClicked;
+});
+</script>
+</body>
+</html>
